@@ -3,6 +3,21 @@ document.addEventListener("DOMContentLoaded", () => {
   const activitySelect = document.getElementById("activity");
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
+  const signupContainer = document.getElementById("signup-container");
+  const loginToggle = document.getElementById("login-toggle");
+  const loginForm = document.getElementById("login-form");
+  const teacherSession = document.getElementById("teacher-session");
+  const logoutButton = document.getElementById("logout-button");
+  const authMessage = document.getElementById("auth-message");
+  let teacherCredentials = null;
+
+  function authorizationHeader(credentials) {
+    const bytes = new TextEncoder().encode(
+      `${credentials.username}:${credentials.password}`
+    );
+    const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join("");
+    return `Basic ${btoa(binary)}`;
+  }
 
   // Function to fetch activities from API
   async function fetchActivities() {
@@ -12,6 +27,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Clear loading message
       activitiesList.innerHTML = "";
+      while (activitySelect.options.length > 1) {
+        activitySelect.remove(1);
+      }
 
       // Populate activities list
       Object.entries(activities).forEach(([name, details]) => {
@@ -29,8 +47,14 @@ document.addEventListener("DOMContentLoaded", () => {
               <ul class="participants-list">
                 ${details.participants
                   .map(
-                    (email) =>
-                      `<li><span class="participant-email">${email}</span><button class="delete-btn" data-activity="${name}" data-email="${email}">❌</button></li>`
+                    (email) => `<li>
+                      <span class="participant-email">${email}</span>
+                      ${
+                        teacherCredentials
+                          ? `<button class="delete-btn" data-activity="${name}" data-email="${email}">❌</button>`
+                          : ""
+                      }
+                    </li>`
                   )
                   .join("")}
               </ul>
@@ -57,7 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       // Add event listeners to delete buttons
-      document.querySelectorAll(".delete-btn").forEach((button) => {
+      activitiesList.querySelectorAll(".delete-btn").forEach((button) => {
         button.addEventListener("click", handleUnregister);
       });
     } catch (error) {
@@ -80,6 +104,9 @@ document.addEventListener("DOMContentLoaded", () => {
         )}/unregister?email=${encodeURIComponent(email)}`,
         {
           method: "DELETE",
+          headers: {
+            Authorization: authorizationHeader(teacherCredentials),
+          },
         }
       );
 
@@ -110,6 +137,59 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  loginToggle.addEventListener("click", () => {
+    const isHidden = loginForm.classList.toggle("hidden");
+    loginToggle.setAttribute("aria-expanded", String(!isHidden));
+    if (!isHidden) {
+      document.getElementById("teacher-username").focus();
+    }
+  });
+
+  loginForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const credentials = {
+      username: document.getElementById("teacher-username").value,
+      password: document.getElementById("teacher-password").value,
+    };
+
+    try {
+      const response = await fetch("/auth/teacher", {
+        headers: { Authorization: authorizationHeader(credentials) },
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        authMessage.textContent = result.detail || "Unable to log in";
+        authMessage.className = "error";
+        authMessage.classList.remove("hidden");
+        return;
+      }
+
+      teacherCredentials = credentials;
+      signupContainer.classList.remove("hidden");
+      loginForm.classList.add("hidden");
+      loginToggle.classList.add("hidden");
+      teacherSession.classList.remove("hidden");
+      authMessage.classList.add("hidden");
+      loginForm.reset();
+      fetchActivities();
+    } catch (error) {
+      authMessage.textContent = "Failed to log in. Please try again.";
+      authMessage.className = "error";
+      authMessage.classList.remove("hidden");
+      console.error("Error logging in:", error);
+    }
+  });
+
+  logoutButton.addEventListener("click", () => {
+    teacherCredentials = null;
+    signupContainer.classList.add("hidden");
+    teacherSession.classList.add("hidden");
+    loginToggle.classList.remove("hidden");
+    loginForm.reset();
+    fetchActivities();
+  });
+
   // Handle form submission
   signupForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -124,6 +204,9 @@ document.addEventListener("DOMContentLoaded", () => {
         )}/signup?email=${encodeURIComponent(email)}`,
         {
           method: "POST",
+          headers: {
+            Authorization: authorizationHeader(teacherCredentials),
+          },
         }
       );
 
