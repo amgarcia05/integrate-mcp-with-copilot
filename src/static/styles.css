@@ -92,6 +92,21 @@ section h3 {
   color: #1a237e;
 }
 
+.activity-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.activity-controls .form-group {
+  margin-bottom: 0;
+}
+
+.activity-controls .form-group:first-child {
+  grid-column: 1 / -1;
+}
+
 .activity-card {
   margin-bottom: 15px;
   padding: 15px;
@@ -237,6 +252,14 @@ footer {
 @media (max-width: 600px) {
   header {
     padding-top: 65px;
+  }
+
+  .activity-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .activity-controls .form-group:first-child {
+    grid-column: auto;
   }
 
   .teacher-controls {
